@@ -46,12 +46,20 @@ export const loginUser = async (req, res) => {
       email,
     };
 
-    console.log('Sessão criada:', req.session.user);
+    // 🔹 Força salvar a sessão antes de enviar a resposta
+    req.session.save(err => {
+      if (err) {
+        console.error('Erro ao salvar sessão:', err);
+        return res.status(500).json({ error: 'Não foi possível salvar sessão.' });
+      }
 
-    // 🔹 Retorna padronizado para o frontend
-    return res.json({
-      message: 'Login realizado com sucesso!',
-      user: req.session.user,
+      console.log('Sessão criada:', req.session.user);
+
+      // 🔹 Retorna padronizado para o frontend
+      return res.json({
+        message: 'Login realizado com sucesso!',
+        user: req.session.user,
+      });
     });
 
   } catch (err) {
