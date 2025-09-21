@@ -48,6 +48,8 @@ export const loginUser = async (req, res) => {
       email,
     };
 
+    console.log(req.session.user)
+
     return res.json({ message: 'Login realizado com sucesso!', user: { id: user.id, name: user.name1, email } });
 
     /*
