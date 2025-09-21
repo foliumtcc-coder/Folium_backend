@@ -13,6 +13,7 @@ import verifyRouter from './routes/auth/verify.js';
 import loginRouter from './routes/auth/login.js';
 import confirmRouter from './routes/auth/confirm.js';
 import projectsRouter from './routes/auth/projects.js';
+import userRouter from './routes/auth/user.js';
 
 dotenv.config();
 
@@ -58,6 +59,7 @@ app.use('/api/auth/verify', verifyRouter);
 app.use('/api/auth/login', loginRouter);
 app.use('/api/auth/confirm', confirmRouter);
 app.use('/api/auth/projects', projectsRouter);
+app.use('/api/auth/user', userRouter);
 
 // Teste rápido
 app.get('/ping', (req, res) => res.send('pong'));
