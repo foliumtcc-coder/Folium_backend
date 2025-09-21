@@ -1,44 +1,58 @@
 import { Pool } from 'pg';
 import cloudinary from '../utils/cloudinary.js';
-import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import multer from 'multer';
 
+// Conexão com o banco
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
 });
 
-// Configuração do multer + Cloudinary
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: 'projetos',
-    allowed_formats: ['jpg', 'png', 'jpeg', 'webp']
-  },
-});
-const parser = multer({ storage });
+// Multer: armazenar arquivos na memória temporariamente
+const upload = multer({ storage: multer.memoryStorage() });
 
-export const uploadProject = parser.single('proj-pic');
+// Middleware para upload de projeto
+export const uploadProject = (req, res, next) => {
+  const singleUpload = upload.single('proj-pic');
 
-export const createProject = async (req, res) => {
-  const { titulo, descricao } = req.body;
-  const imagem = req.file ? req.file.secure_url : null;
-
-  try {
-    const userId = req.session.user_id;
-    if (!userId) {
-      return res.status(401).json({ error: 'Usuário não autenticado.' });
+  singleUpload(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ error: 'Erro no upload do arquivo.' });
     }
 
-    const result = await pool.query(
-      `INSERT INTO projetos (titulo, descricao, imagem, criado_por) 
-       VALUES ($1,$2,$3,$4) RETURNING *`,
-      [titulo, descricao, imagem, userId]
+    // Se não houver arquivo, apenas segue
+    if (!req.file) return next();
+
+    // Upload para Cloudinary
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: 'projetos', allowed_formats: ['jpg', 'png', 'jpeg', 'webp'] },
+      (error, result) => {
+        if (error) return res.status(500).json({ error: 'Erro no Cloudinary' });
+
+        // Adiciona a URL da imagem ao req.file.path
+        req.file.path = result.secure_url;
+        next();
+      }
     );
 
+    stream.end(req.file.buffer);
+  });
+};
+
+// Controller para criar projeto
+export const createProject = async (req, res) => {
+  const { titulo, descricao, criado_por } = req.body;
+  const imagem = req.file ? req.file.path : null;
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO projetos (titulo, descricao, imagem, criado_por) VALUES ($1,$2,$3,$4) RETURNING *`,
+      [titulo, descricao, imagem, criado_por]
+    );
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('Erro ao criar projeto:', err);
+    console.error(err);
     res.status(500).json({ error: 'Erro ao criar projeto' });
   }
 };
+
