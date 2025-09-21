@@ -22,7 +22,7 @@ const PGStore = pgSession(session);
 const pgPool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false, // necessário se for Railway ou Render com SSL
+    rejectUnauthorized: false, // necessário se for Railway com SSL
   },
 });
 
@@ -36,12 +36,11 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// Sessão com PostgreSQL (corrigida)
+// Sessão com PostgreSQL
 app.use(session({
   store: new PGStore({
-    pool: pgPool, // <-- agora usamos o pool correto
-    tableName: 'session', // opcional, tabela padrão 'session'
-    createTableIfMissing: true,
+    conString: process.env.DATABASE_URL,
+    createTableIfMissing: true
   }),
   secret: process.env.SESSION_SECRET || 'segredo-super-seguro',
   resave: false,
@@ -49,7 +48,7 @@ app.use(session({
   cookie: {
     sameSite: 'none', // necessário para cross-domain
     secure: true,     // HTTPS obrigatório
-    httpOnly: true,
+    httpOnly: true
   }
 }));
 
@@ -69,3 +68,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
+

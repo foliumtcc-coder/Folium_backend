@@ -1,8 +1,6 @@
 // loginController.js
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
-// import crypto from 'crypto'; // futuramente para códigos de login
-// import sendLoginCode from '../utils/sendLoginCode.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -41,34 +39,21 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ error: 'Email ou senha incorretos.' });
     }
 
-    // 🔹 Login direto (ativo)
+    // 🔹 Salva na sessão
     req.session.user = {
       id: user.id,
-      name1: user.name1,
+      name: user.name1,
       email,
     };
 
-    console.log(req.session.user)
+    console.log('Sessão criada:', req.session.user);
 
-    return res.json({ message: 'Login realizado com sucesso!', user: { id: user.id, name: user.name1, email } });
+    // 🔹 Retorna padronizado para o frontend
+    return res.json({
+      message: 'Login realizado com sucesso!',
+      user: req.session.user,
+    });
 
-    /*
-    // 🔹 Login com código de confirmação (desativado)
-    // const loginCode = crypto.randomInt(100000, 999999).toString();
-
-    // req.session.tempUser = {
-    //   id: user.id,
-    //   name1: user.name1,
-    //   email,
-    //   code: loginCode,
-    //   expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutos
-    //   rememberMe,
-    // };
-
-    // await sendLoginCode(email, loginCode);
-
-    // return res.json({ error: 'Código de confirmação enviado para seu e-mail.' });
-    */
   } catch (err) {
     console.error('Erro interno:', err);
     return res.status(500).json({ error: 'Erro interno no servidor.' });
