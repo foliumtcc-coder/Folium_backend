@@ -39,16 +39,16 @@ app.use(cookieParser());
 // Sessão com PostgreSQL
 app.use(session({
   store: new PGStore({
-    pool: pgPool,
+    conString: process.env.DATABASE_URL,
     createTableIfMissing: true
   }),
   secret: process.env.SESSION_SECRET || 'segredo-super-seguro',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    sameSite: 'none',            // necessário para cross-domain
-    secure: process.env.NODE_ENV === 'production', // HTTPS em produção
-    httpOnly: true,
+    sameSite: 'none', // necessário para cross-domain
+    secure: true,     // HTTPS obrigatório
+    httpOnly: true
   }
 }));
 
