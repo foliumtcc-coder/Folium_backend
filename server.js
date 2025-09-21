@@ -12,7 +12,7 @@ import registerRouter from './routes/auth/register.js';
 import verifyRouter from './routes/auth/verify.js';
 import loginRouter from './routes/auth/login.js';
 import confirmRouter from './routes/auth/confirm.js';
-import projectsRouter from './routes/projects.js';
+import projectsRouter from './routes/auth/projects.js';
 
 dotenv.config();
 
