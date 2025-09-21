@@ -1,10 +1,7 @@
+// server.js
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import cookieParser from 'cookie-parser';
-import session from 'express-session';
-import pgSession from 'connect-pg-simple';
-import pg from 'pg';
 
 import registerRouter from './routes/auth/register.js';
 import verifyRouter from './routes/auth/verify.js';
@@ -16,41 +13,15 @@ import userRouter from './routes/auth/user.js';
 dotenv.config();
 
 const app = express();
-const PGStore = pgSession(session);
 
-// Pool do PostgreSQL
-const pgPool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false, // necessário se for Railway com SSL
-  },
-});
-
-// CORS configurado para permitir credenciais
+// CORS configurado para permitir credenciais e HTTPS
 app.use(cors({
   origin: process.env.FRONTEND_URL, // ex: 'https://folium.netlify.app'
   credentials: true,
 }));
 
-// Body parser e cookie parser
+// Body parser
 app.use(express.json());
-app.use(cookieParser());
-
-// Sessão com PostgreSQL
-app.use(session({
-  store: new PGStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: true
-  }),
-  secret: process.env.SESSION_SECRET || 'segredo-super-seguro',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    sameSite: 'none', // necessário para cross-domain
-    secure: true,     // HTTPS obrigatório
-    httpOnly: true
-  }
-}));
 
 // Rotas da API
 app.use('/api/auth/register', registerRouter);
@@ -68,4 +39,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
-

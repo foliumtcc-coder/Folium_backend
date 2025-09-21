@@ -1,24 +1,19 @@
 // routes/auth/user.js
 import express from 'express';
-const router = express.Router();
+import { createClient } from '@supabase/supabase-js';
 
-/**
- * GET /api/auth/user/me
- * Retorna os dados do usuário logado na sessão.
- */
-router.get('/me', (req, res) => {
-  if (req.session.user) {
-    // Retorna apenas informações seguras e necessárias para o frontend
-    return res.json({
-      user: {
-        id: req.session.user.id,
-        name: req.session.user.name1, // ou 'name' dependendo do seu banco
-        email: req.session.user.email
-      }
-    });
-  } else {
-    return res.json({ user: null });
-  }
+const router = express.Router();
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+router.get('/me', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1]; // Bearer <token>
+  if (!token) return res.status(401).json({ user: null });
+
+  const { data: user, error } = await supabase.auth.getUser(token);
+  if (error || !user) return res.status(401).json({ user: null });
+
+  return res.json({ user });
 });
 
 export default router;
+
