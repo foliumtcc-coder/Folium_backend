@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
-import sendLoginCode from '../utils/sendLoginCode.js';
+// import crypto from 'crypto'; // não precisa por enquanto
+// import sendLoginCode from '../utils/sendLoginCode.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -36,6 +36,18 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ error: 'Email ou senha incorretos.' });
     }
 
+    // 🔹 Login direto (sem código de confirmação)
+    req.session.user = {
+      id: user.id,
+      name1: user.name1,
+      email,
+      rememberMe,
+    };
+
+    return res.json({ message: 'Login realizado com sucesso!' });
+
+    /*
+    // 🔹 (Guardado para ativar futuramente)
     // Gera código de 6 dígitos
     const loginCode = crypto.randomInt(100000, 999999).toString();
 
@@ -52,6 +64,7 @@ export const loginUser = async (req, res) => {
     await sendLoginCode(email, loginCode);
 
     return res.json({ error: 'Código de confirmação enviado para seu e-mail.' });
+    */
   } catch (err) {
     console.error('Erro interno:', err);
     return res.status(500).json({ error: 'Erro interno no servidor.' });
