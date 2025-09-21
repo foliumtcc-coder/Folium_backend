@@ -21,6 +21,11 @@ export const loginUser = async (req, res) => {
       .eq('email', email)
       .single();
 
+
+          console.log({ email });
+    console.log('User from Supabase:', user);
+    console.log('Error from Supabase:', error);
+
     if (error || !user) {
       return res.status(401).json({ error: 'Email ou senha incorretos.' });
     }
