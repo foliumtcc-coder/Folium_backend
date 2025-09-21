@@ -1,9 +1,13 @@
+// loginController.js
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
-// import crypto from 'crypto'; // não precisa por enquanto
+// import crypto from 'crypto'; // futuramente para códigos de login
 // import sendLoginCode from '../utils/sendLoginCode.js';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 export const loginUser = async (req, res) => {
   const { email, password, rememberMe } = req.body;
@@ -23,6 +27,7 @@ export const loginUser = async (req, res) => {
       console.error('Erro Supabase:', error);
       return res.status(500).json({ error: 'Erro no banco de dados.' });
     }
+
     if (!user) {
       return res.status(401).json({ error: 'Email ou senha incorretos.' });
     }
@@ -36,7 +41,7 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ error: 'Email ou senha incorretos.' });
     }
 
-    // 🔹 Login direto (sem código de confirmação)
+    // 🔹 Login direto (ativo)
     req.session.user = {
       id: user.id,
       name1: user.name1,
@@ -44,26 +49,24 @@ export const loginUser = async (req, res) => {
       rememberMe,
     };
 
-    return res.json({ message: 'Login realizado com sucesso!' });
+    return res.json({ message: 'Login realizado com sucesso!', user: { id: user.id, name: user.name1, email } });
 
     /*
-    // 🔹 (Guardado para ativar futuramente)
-    // Gera código de 6 dígitos
-    const loginCode = crypto.randomInt(100000, 999999).toString();
+    // 🔹 Login com código de confirmação (desativado)
+    // const loginCode = crypto.randomInt(100000, 999999).toString();
 
-    // Armazena na sessão temporária
-    req.session.tempUser = {
-      id: user.id,
-      name1: user.name1,
-      email,
-      code: loginCode,
-      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutos
-      rememberMe,
-    };
+    // req.session.tempUser = {
+    //   id: user.id,
+    //   name1: user.name1,
+    //   email,
+    //   code: loginCode,
+    //   expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutos
+    //   rememberMe,
+    // };
 
-    await sendLoginCode(email, loginCode);
+    // await sendLoginCode(email, loginCode);
 
-    return res.json({ error: 'Código de confirmação enviado para seu e-mail.' });
+    // return res.json({ error: 'Código de confirmação enviado para seu e-mail.' });
     */
   } catch (err) {
     console.error('Erro interno:', err);

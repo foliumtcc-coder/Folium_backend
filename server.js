@@ -6,8 +6,6 @@ import session from 'express-session';
 import pgSession from 'connect-pg-simple';
 import pg from 'pg';
 
-
-
 import registerRouter from './routes/auth/register.js';
 import verifyRouter from './routes/auth/verify.js';
 import loginRouter from './routes/auth/login.js';
@@ -17,9 +15,10 @@ import userRouter from './routes/auth/user.js';
 
 dotenv.config();
 
-const PGStore = pgSession(session);
 const app = express();
+const PGStore = pgSession(session);
 
+// Pool do PostgreSQL
 const pgPool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
@@ -27,7 +26,7 @@ const pgPool = new pg.Pool({
   },
 });
 
-// CORS com credenciais e origem liberada para o frontend hospedado
+// CORS configurado para permitir credenciais
 app.use(cors({
   origin: process.env.FRONTEND_URL, // ex: 'https://folium.netlify.app'
   credentials: true,
@@ -37,19 +36,19 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// Sessão configurada para ambientes cross-domain (Netlify + Railway)
+// Sessão com PostgreSQL
 app.use(session({
   store: new PGStore({
-    conString: process.env.DATABASE_URL, // deve estar correta
+    pool: pgPool,
     createTableIfMissing: true
   }),
   secret: process.env.SESSION_SECRET || 'segredo-super-seguro',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    sameSite: 'none', // necessário para cross-domain
-    secure: true,     // necessário com HTTPS (Netlify usa)
-    httpOnly: true
+    sameSite: 'none',            // necessário para cross-domain
+    secure: process.env.NODE_ENV === 'production', // HTTPS em produção
+    httpOnly: true,
   }
 }));
 
@@ -61,7 +60,7 @@ app.use('/api/auth/confirm', confirmRouter);
 app.use('/api/auth/projects', projectsRouter);
 app.use('/api/auth/user', userRouter);
 
-// Teste rápido
+// Rota de teste
 app.get('/ping', (req, res) => res.send('pong'));
 
 // Inicia o servidor
@@ -69,3 +68,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
+
