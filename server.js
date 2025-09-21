@@ -18,12 +18,10 @@ dotenv.config();
 const app = express();
 const PGStore = pgSession(session);
 
-// Pool do PostgreSQL
+// Cria o pool do PostgreSQL
 const pgPool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false, // necessário se for Railway com SSL
-  },
+  ssl: { rejectUnauthorized: false } // Supabase / Railway
 });
 
 // CORS configurado para permitir credenciais
@@ -36,18 +34,18 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// Sessão com PostgreSQL
+// Sessão com PostgreSQL usando o pool
 app.use(session({
   store: new PGStore({
-    conString: process.env.DATABASE_URL,
+    pool: pgPool,              // ✅ usar pool
     createTableIfMissing: true
   }),
   secret: process.env.SESSION_SECRET || 'segredo-super-seguro',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    sameSite: 'none', // necessário para cross-domain
-    secure: true,     // HTTPS obrigatório
+    sameSite: 'none',           // necessário para cross-domain
+    secure: true, // true apenas em produção HTTPS
     httpOnly: true
   }
 }));
@@ -68,4 +66,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
-
