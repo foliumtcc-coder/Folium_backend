@@ -17,6 +17,7 @@ router.post('/', async (req, res) => {
   }
 
   try {
+    // Busca usuário no Supabase
     const { data: user, error } = await supabase
       .from('usuarios')
       .select('id, name1, password, verificado')
@@ -29,16 +30,19 @@ router.post('/', async (req, res) => {
     const passwordValid = await bcrypt.compare(password, user.password);
     if (!passwordValid) return res.status(401).json({ error: 'Email ou senha incorretos.' });
 
-    // Salva na sessão
-    req.session.user = {
-      id: user.id,
-      name1: user.name1,
-      email
-    };
+    // 🔹 Cria token JWT usando Supabase Auth
+    const { data: sessionData, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
 
-    req.session.save(err => {
-      if (err) return res.status(500).json({ error: 'Não foi possível salvar sessão.' });
-      return res.json({ message: 'Login realizado com sucesso!', user: req.session.user });
+    if (signInError) return res.status(401).json({ error: signInError.message });
+
+    // Retorna token + dados do usuário
+    return res.json({
+      message: 'Login realizado com sucesso!',
+      user: { id: user.id, name: user.name1, email },
+      accessToken: sessionData.session.access_token
     });
 
   } catch (err) {
@@ -48,3 +52,4 @@ router.post('/', async (req, res) => {
 });
 
 export default router;
+

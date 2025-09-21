@@ -1,3 +1,4 @@
+// loginController.js
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 
@@ -7,7 +8,7 @@ const supabase = createClient(
 );
 
 export const loginUser = async (req, res) => {
-  const { email, password, rememberMe } = req.body;
+  const { email, password } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Email e senha obrigatórios.' });
@@ -21,8 +22,7 @@ export const loginUser = async (req, res) => {
       .eq('email', email)
       .single();
 
-
-          console.log({ email });
+    console.log({ email });
     console.log('User from Supabase:', user);
     console.log('Error from Supabase:', error);
 
@@ -39,29 +39,21 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ error: 'Email ou senha incorretos.' });
     }
 
-    // 🔹 Configura sessão
-    req.session.user = { id: user.id, name: user.name1, email };
+    // 🔹 Gera token JWT usando Supabase
+    const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
 
-    // Ajusta expiração do cookie se rememberMe for true
-    if (rememberMe) {
-      req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000; // 7 dias
-    } else {
-      req.session.cookie.expires = false; // sessão termina ao fechar navegador
+    if (sessionError || !sessionData.session) {
+      console.error('Erro ao gerar token:', sessionError);
+      return res.status(500).json({ error: 'Não foi possível gerar token de login.' });
     }
 
-    // Salva sessão antes de responder
-    req.session.save(err => {
-      if (err) {
-        console.error('Erro ao salvar sessão:', err);
-        return res.status(500).json({ error: 'Não foi possível salvar sessão.' });
-      }
-
-      console.log('Sessão criada:', req.session.user);
-
-      return res.json({
-        message: 'Login realizado com sucesso!',
-        user: req.session.user
-      });
+    // 🔹 Retorna usuário + token
+    return res.json({
+      user: { id: user.id, name: user.name1, email },
+      accessToken: sessionData.session.access_token
     });
 
   } catch (err) {
