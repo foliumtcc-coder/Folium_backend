@@ -11,7 +11,9 @@ const supabase = createClient(
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Middleware de upload
+/* ---------------------------
+   Middleware de upload
+---------------------------- */
 export const uploadProject = (req, res, next) => {
   console.log('[UPLOAD] Iniciando upload do arquivo');
   const singleUpload = upload.single('imagem');
@@ -42,7 +44,9 @@ export const uploadProject = (req, res, next) => {
   });
 };
 
-// Criar projeto
+/* ---------------------------
+   Criar projeto
+---------------------------- */
 export const createProject = async (req, res) => {
   console.log('[PROJECT] Endpoint createProject chamado');
   console.log('[PROJECT] req.body:', req.body);
@@ -57,7 +61,18 @@ export const createProject = async (req, res) => {
       return res.status(400).json({ error: 'Título, descrição e criador são obrigatórios.' });
     }
 
-    // Cria slug
+    // Buscar ID do criador
+    const { data: usuario } = await supabase
+      .from('usuarios')
+      .select('id')
+      .eq('email', criado_por)
+      .single();
+
+    if (!usuario) {
+      return res.status(404).json({ error: 'Criador não encontrado.' });
+    }
+
+    // Cria slug único
     let slug = slugify(titulo, { lower: true, strict: true });
     const { data: existing } = await supabase
       .from('projetos')
@@ -74,7 +89,7 @@ export const createProject = async (req, res) => {
         nome: titulo,
         descricao,
         imagem,
-        user_email: criado_por,
+        user_id: usuario.id,
         status: 'em_andamento'
       }])
       .select()
@@ -94,22 +109,38 @@ export const createProject = async (req, res) => {
 
       for (const email of emails) {
         try {
+          // Buscar ID do usuário membro
+          const { data: usuarioMembro } = await supabase
+            .from('usuarios')
+            .select('id')
+            .eq('email', email)
+            .single();
+
+          if (!usuarioMembro) {
+            console.warn(`[PROJECT] Usuário não encontrado: ${email}`);
+            continue;
+          }
+
+          // Inserir na tabela de membros
           const { error: memberError } = await supabase
             .from('projetos_membros')
             .insert({
               projeto_id: projeto.id,
-              email,
+              usuario_id: usuarioMembro.id,
               aceito: false,
               adicionado_em: new Date()
             });
 
           if (memberError) console.error('[PROJECT] Erro ao adicionar membro:', memberError);
 
+          // Criar notificação
           const { error: notifError } = await supabase
             .from('notificacoes')
             .insert({
-              email_usuario: email,
+              usuario_id: usuarioMembro.id,
+              projeto_id: projeto.id,
               mensagem: `Você foi convidado para participar do projeto ${titulo}.`,
+              tipo: 'convite',
               lida: false,
               criada_em: new Date()
             });
@@ -130,20 +161,34 @@ export const createProject = async (req, res) => {
   }
 };
 
-// Aceitar convite
+/* ---------------------------
+   Aceitar convite
+---------------------------- */
 export const acceptInvite = async (req, res) => {
   const { projeto_id } = req.params;
-  const email = req.user.email;
+  const email = req.user.email; // precisa vir do middleware de autenticação
 
   console.log('[INVITE] Endpoint acceptInvite chamado');
   console.log('[INVITE] projeto_id:', projeto_id, 'email:', email);
 
   try {
+    // Buscar ID do usuário
+    const { data: usuario } = await supabase
+      .from('usuarios')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    if (!usuario) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    // Atualizar convite
     const { data, error } = await supabase
       .from('projetos_membros')
       .update({ aceito: true, adicionado_em: new Date() })
       .eq('projeto_id', projeto_id)
-      .eq('email', email)
+      .eq('usuario_id', usuario.id)
       .eq('aceito', false)
       .select()
       .single();

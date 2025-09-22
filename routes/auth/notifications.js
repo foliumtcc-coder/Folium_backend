@@ -1,3 +1,4 @@
+// routes/auth/notifications.js
 import express from 'express';
 import { getNotifications, markAsRead } from '../../controllers/notificationsController.js';
 import jwt from 'jsonwebtoken';
@@ -19,12 +20,10 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
-// Buscar notificações do usuário logado
+// Listar todas as notificações do usuário logado
 router.get('/me', authenticateToken, getNotifications);
 
-// Marcar como lida
-router.post('/read/:id', authenticateToken, markAsRead);
+// Marcar notificação como lida
+router.patch('/:id/read', authenticateToken, markAsRead);
 
 export default router;
-
-
