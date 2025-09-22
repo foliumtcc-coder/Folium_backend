@@ -10,13 +10,19 @@ const upload = multer({ storage: multer.memoryStorage() });
 export const uploadProject = (req, res, next) => {
   const singleUpload = upload.single('imagem');
   singleUpload(req, res, (err) => {
-    if (err) return res.status(400).json({ error: 'Erro no upload do arquivo.' });
+    if (err) {
+      console.error('Erro no upload do arquivo:', err);
+      return res.status(400).json({ error: 'Erro no upload do arquivo.' });
+    }
     if (!req.file) return next();
 
     const stream = cloudinary.uploader.upload_stream(
       { folder: 'projetos', allowed_formats: ['jpg','png','jpeg','webp'] },
       (error, result) => {
-        if (error) return res.status(500).json({ error: 'Erro no Cloudinary' });
+        if (error) {
+          console.error('Erro no Cloudinary:', error);
+          return res.status(500).json({ error: 'Erro no Cloudinary' });
+        }
         req.file.path = result.secure_url;
         next();
       }
@@ -27,15 +33,24 @@ export const uploadProject = (req, res, next) => {
 
 // Criar projeto
 export const createProject = async (req, res) => {
+  console.log('REQ.BODY:', req.body);
+  console.log('REQ.FILE:', req.file);
+  console.log('REQ.USER:', req.user);
+
   const { titulo, descricao, criado_por, membros } = req.body;
   const imagem = req.file ? req.file.path : null;
 
   try {
     let slug = slugify(titulo, { lower: true, strict: true });
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from('projetos')
       .select('slug')
       .eq('slug', slug);
+
+    if (existingError) {
+      console.error('Erro ao buscar slug existente:', existingError);
+      throw existingError;
+    }
 
     if (existing.length > 0) slug += '-' + Date.now();
 
@@ -52,17 +67,23 @@ export const createProject = async (req, res) => {
       .select()
       .single();
 
-    if (projectError) throw projectError;
+    if (projectError) {
+      console.error('Erro ao criar projeto:', projectError);
+      throw projectError;
+    }
+
+    console.log('Projeto criado com sucesso:', projeto);
 
     if (membros) {
       const emails = membros.split(',').map(m => m.trim()).filter(Boolean);
-
       for (const email of emails) {
-        await supabase
+        const { error: memberError } = await supabase
           .from('projetos_membros')
           .insert({ projeto_id: projeto.id, email, aceito: false, adicionado_em: new Date() });
 
-        await supabase
+        if (memberError) console.error('Erro ao adicionar membro:', memberError);
+
+        const { error: notifError } = await supabase
           .from('notificacoes')
           .insert({
             email_usuario: email,
@@ -70,13 +91,15 @@ export const createProject = async (req, res) => {
             lida: false,
             criada_em: new Date()
           });
+
+        if (notifError) console.error('Erro ao criar notificação:', notifError);
       }
     }
 
     res.status(201).json({ message: 'Projeto criado com sucesso!', projeto });
 
   } catch (err) {
-    console.error(err);
+    console.error('Erro geral no createProject:', err);
     res.status(500).json({ error: 'Erro ao criar projeto' });
   }
 };
@@ -85,6 +108,8 @@ export const createProject = async (req, res) => {
 export const acceptInvite = async (req, res) => {
   const { projeto_id } = req.params;
   const email = req.user.email;
+
+  console.log('Aceitar convite para projeto_id:', projeto_id, 'usuário:', email);
 
   try {
     const { data, error } = await supabase
@@ -96,14 +121,17 @@ export const acceptInvite = async (req, res) => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Erro ao aceitar convite:', error);
+      throw error;
+    }
     if (!data) return res.status(404).json({ error: 'Convite não encontrado ou já aceito.' });
 
+    console.log('Convite aceito com sucesso:', data);
     res.json({ message: 'Convite aceito com sucesso!', membro: data });
 
   } catch (err) {
-    console.error(err);
+    console.error('Erro geral no acceptInvite:', err);
     res.status(500).json({ error: 'Erro ao aceitar convite.' });
   }
 };
-
