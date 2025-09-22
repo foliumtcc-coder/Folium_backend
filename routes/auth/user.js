@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticate } from '../utils/authenticate.js';
+import { authenticate } from '../../utils/authenticate.js';
 
 const router = express.Router();
 

@@ -30,7 +30,7 @@ app.use('/api/auth/login', loginRouter);
 app.use('/api/auth/confirm', confirmRouter);
 app.use('/api/auth/projects', projectsRouter);
 app.use('/api/auth/user', userRouter);
-app.use('/api/auth/notifications', notificationsRouter);
+app.use('/api/auth/notifications', notifications);
 
 // Rota de teste
 app.get('/ping', (req, res) => res.send('pong'));

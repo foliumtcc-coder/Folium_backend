@@ -1,6 +1,6 @@
 import express from 'express';
-import { getNotifications, markAsRead } from '../controllers/notificationsController.js';
-import { authenticate } from '../utils/authenticate.js'; // seu middleware JWT
+import { getNotifications, markAsRead } from '../../controllers/notificationsController.js';
+import { authenticate } from '../../utils/authenticate.js'; // seu middleware JWT
 
 const router = express.Router();
 
