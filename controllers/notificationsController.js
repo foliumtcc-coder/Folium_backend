@@ -10,8 +10,8 @@ export const getNotifications = async (req, res) => {
     const { data, error } = await supabase
       .from('notificacoes')
       .select('*')
-      .eq('user_email', email)
-      .order('criado_em', { ascending: false });
+      .eq('email_usuario', email)
+      .order('criada_em', { ascending: false });
 
     if (error) throw error;
 
@@ -30,9 +30,9 @@ export const markAsRead = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('notificacoes')
-      .update({ read: true, atualizado_em: new Date() })
+      .update({ lida: true })
       .eq('id', id)
-      .eq('user_email', email)
+      .eq('email_usuario', email)
       .select()
       .single();
 
@@ -46,16 +46,16 @@ export const markAsRead = async (req, res) => {
   }
 };
 
-// Criar notificação (para qualquer evento)
+// Criar notificação
 export const createNotification = async (userEmail, mensagem) => {
   try {
     const { error } = await supabase
       .from('notificacoes')
       .insert({
-        user_email: userEmail,
+        email_usuario: userEmail,
         mensagem,
-        read: false,
-        criado_em: new Date()
+        lida: false,
+        criada_em: new Date()
       });
 
     if (error) throw error;
