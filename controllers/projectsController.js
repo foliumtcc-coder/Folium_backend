@@ -1,6 +1,6 @@
 import slugify from 'slugify';
 import { createClient } from '@supabase/supabase-js';
-import cloudinary from '../../utils/cloudinary.js';
+import cloudinary from '../utils/cloudinary.js';
 import multer from 'multer';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
