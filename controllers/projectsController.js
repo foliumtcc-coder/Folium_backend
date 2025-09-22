@@ -1,28 +1,39 @@
+// src/controllers/projectsController.js
 import slugify from 'slugify';
 import { createClient } from '@supabase/supabase-js';
 import cloudinary from '../utils/cloudinary.js';
 import multer from 'multer';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Middleware de upload
 export const uploadProject = (req, res, next) => {
+  console.log('[UPLOAD] Iniciando upload do arquivo');
   const singleUpload = upload.single('imagem');
+
   singleUpload(req, res, (err) => {
     if (err) {
-      console.error('Erro no upload do arquivo:', err);
+      console.error('[UPLOAD] Erro no multer:', err);
       return res.status(400).json({ error: 'Erro no upload do arquivo.' });
     }
-    if (!req.file) return next();
+    if (!req.file) {
+      console.log('[UPLOAD] Nenhum arquivo enviado, seguindo sem imagem.');
+      return next();
+    }
 
     const stream = cloudinary.uploader.upload_stream(
       { folder: 'projetos', allowed_formats: ['jpg','png','jpeg','webp'] },
       (error, result) => {
         if (error) {
-          console.error('Erro no Cloudinary:', error);
+          console.error('[CLOUDINARY] Erro no upload:', error);
           return res.status(500).json({ error: 'Erro no Cloudinary' });
         }
+        console.log('[CLOUDINARY] Upload finalizado:', result.secure_url);
         req.file.path = result.secure_url;
         next();
       }
@@ -33,30 +44,29 @@ export const uploadProject = (req, res, next) => {
 
 // Criar projeto
 export const createProject = async (req, res) => {
-  console.log('REQ.BODY:', req.body);
-  console.log('REQ.FILE:', req.file);
-  console.log('REQ.USER:', req.user);
-  console.log('slug gerado:', slug);
-  console.log('Entrou no endpoint createProject', req.body, req.file);
-  console.log('Chegou no createProject', { body: req.body, file: req.file });
-
-  const { titulo, descricao, criado_por, membros } = req.body;
-  const imagem = req.file ? req.file.path : null;
+  console.log('[PROJECT] Endpoint createProject chamado');
+  console.log('[PROJECT] req.body:', req.body);
+  console.log('[PROJECT] req.file:', req.file);
 
   try {
+    const { titulo, descricao, criado_por, membros } = req.body;
+    const imagem = req.file ? req.file.path : null;
+
+    if (!titulo || !descricao || !criado_por) {
+      console.warn('[PROJECT] Dados obrigatórios faltando');
+      return res.status(400).json({ error: 'Título, descrição e criador são obrigatórios.' });
+    }
+
+    // Cria slug
     let slug = slugify(titulo, { lower: true, strict: true });
-    const { data: existing, error: existingError } = await supabase
+    const { data: existing } = await supabase
       .from('projetos')
       .select('slug')
       .eq('slug', slug);
 
-    if (existingError) {
-      console.error('Erro ao buscar slug existente:', existingError);
-      throw existingError;
-    }
+    if (existing?.length > 0) slug += '-' + Date.now();
 
-    if (existing.length > 0) slug += '-' + Date.now();
-
+    // Insere projeto
     const { data: projeto, error: projectError } = await supabase
       .from('projetos')
       .insert([{
@@ -71,38 +81,51 @@ export const createProject = async (req, res) => {
       .single();
 
     if (projectError) {
-      console.error('Erro ao criar projeto:', projectError);
+      console.error('[PROJECT] Erro ao inserir projeto:', projectError);
       throw projectError;
     }
 
-    console.log('Projeto criado com sucesso:', projeto);
+    console.log('[PROJECT] Projeto criado:', projeto);
 
+    // Adiciona membros e cria notificações
     if (membros) {
       const emails = membros.split(',').map(m => m.trim()).filter(Boolean);
+      console.log('[PROJECT] Membros a adicionar:', emails);
+
       for (const email of emails) {
-        const { error: memberError } = await supabase
-          .from('projetos_membros')
-          .insert({ projeto_id: projeto.id, email, aceito: false, adicionado_em: new Date() });
+        try {
+          const { error: memberError } = await supabase
+            .from('projetos_membros')
+            .insert({
+              projeto_id: projeto.id,
+              email,
+              aceito: false,
+              adicionado_em: new Date()
+            });
 
-        if (memberError) console.error('Erro ao adicionar membro:', memberError);
+          if (memberError) console.error('[PROJECT] Erro ao adicionar membro:', memberError);
 
-        const { error: notifError } = await supabase
-          .from('notificacoes')
-          .insert({
-            email_usuario: email,
-            mensagem: `Você foi convidado para participar do projeto ${titulo}.`,
-            lida: false,
-            criada_em: new Date()
-          });
+          const { error: notifError } = await supabase
+            .from('notificacoes')
+            .insert({
+              email_usuario: email,
+              mensagem: `Você foi convidado para participar do projeto ${titulo}.`,
+              lida: false,
+              criada_em: new Date()
+            });
 
-        if (notifError) console.error('Erro ao criar notificação:', notifError);
+          if (notifError) console.error('[PROJECT] Erro ao criar notificação:', notifError);
+
+        } catch (err) {
+          console.error('[PROJECT] Erro em membro ou notificação:', err);
+        }
       }
     }
 
     res.status(201).json({ message: 'Projeto criado com sucesso!', projeto });
 
   } catch (err) {
-    console.error('Erro geral no createProject:', err);
+    console.error('[PROJECT] Erro interno:', err);
     res.status(500).json({ error: 'Erro ao criar projeto' });
   }
 };
@@ -112,7 +135,8 @@ export const acceptInvite = async (req, res) => {
   const { projeto_id } = req.params;
   const email = req.user.email;
 
-  console.log('Aceitar convite para projeto_id:', projeto_id, 'usuário:', email);
+  console.log('[INVITE] Endpoint acceptInvite chamado');
+  console.log('[INVITE] projeto_id:', projeto_id, 'email:', email);
 
   try {
     const { data, error } = await supabase
@@ -125,16 +149,20 @@ export const acceptInvite = async (req, res) => {
       .single();
 
     if (error) {
-      console.error('Erro ao aceitar convite:', error);
+      console.error('[INVITE] Erro ao atualizar membro:', error);
       throw error;
     }
-    if (!data) return res.status(404).json({ error: 'Convite não encontrado ou já aceito.' });
 
-    console.log('Convite aceito com sucesso:', data);
+    if (!data) {
+      console.warn('[INVITE] Convite não encontrado ou já aceito');
+      return res.status(404).json({ error: 'Convite não encontrado ou já aceito.' });
+    }
+
+    console.log('[INVITE] Convite aceito:', data);
     res.json({ message: 'Convite aceito com sucesso!', membro: data });
 
   } catch (err) {
-    console.error('Erro geral no acceptInvite:', err);
+    console.error('[INVITE] Erro interno:', err);
     res.status(500).json({ error: 'Erro ao aceitar convite.' });
   }
 };
