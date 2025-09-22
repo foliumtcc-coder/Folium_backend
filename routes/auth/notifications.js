@@ -1,29 +1,13 @@
-// routes/auth/notifications.js
 import express from 'express';
 import { getNotifications, markAsRead } from '../../controllers/notificationsController.js';
-import jwt from 'jsonwebtoken';
+import { authenticate } from '../../utils/authenticate.js';
 
 const router = express.Router();
 
-// Middleware de autenticação
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Token não fornecido' });
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch {
-    return res.status(403).json({ error: 'Token inválido' });
-  }
-};
-
-// Listar todas as notificações do usuário logado
-router.get('/me', authenticateToken, getNotifications);
+// Buscar notificações do usuário logado
+router.get('/me', authenticate, getNotifications);
 
 // Marcar notificação como lida
-router.patch('/:id/read', authenticateToken, markAsRead);
+router.post('/read/:id', authenticate, markAsRead);
 
 export default router;
