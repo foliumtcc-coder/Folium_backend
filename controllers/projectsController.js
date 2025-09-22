@@ -36,6 +36,7 @@ export const createProject = async (req, res) => {
   console.log('REQ.BODY:', req.body);
   console.log('REQ.FILE:', req.file);
   console.log('REQ.USER:', req.user);
+  console.log('slug gerado:', slug);
 
   const { titulo, descricao, criado_por, membros } = req.body;
   const imagem = req.file ? req.file.path : null;
