@@ -2,6 +2,7 @@ import slugify from 'slugify';
 import { createClient } from '@supabase/supabase-js';
 import cloudinary from '../utils/cloudinary.js';
 import multer from 'multer';
+console.log('Entrou no endpoint createProject', req.body, req.file);
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const upload = multer({ storage: multer.memoryStorage() });
@@ -37,6 +38,7 @@ export const createProject = async (req, res) => {
   console.log('REQ.FILE:', req.file);
   console.log('REQ.USER:', req.user);
   console.log('slug gerado:', slug);
+  console.log('Entrou no endpoint createProject', req.body, req.file);
 
   const { titulo, descricao, criado_por, membros } = req.body;
   const imagem = req.file ? req.file.path : null;
