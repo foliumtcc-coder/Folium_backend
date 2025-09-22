@@ -26,7 +26,7 @@ router.post('/test', (req, res) => {
 });
 
 // Criar projeto (só para usuários logados)
-router.post('/create', authenticateToken, createProject);
+router.post('/create', /*authenticateToken, */createProject);
 
 // Aceitar convite (só para usuários logados)
 router.patch('/:projeto_id/accept', authenticateToken, acceptInvite);

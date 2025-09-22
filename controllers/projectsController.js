@@ -38,6 +38,7 @@ export const createProject = async (req, res) => {
   console.log('REQ.USER:', req.user);
   console.log('slug gerado:', slug);
   console.log('Entrou no endpoint createProject', req.body, req.file);
+  console.log('Chegou no createProject', { body: req.body, file: req.file });
 
   const { titulo, descricao, criado_por, membros } = req.body;
   const imagem = req.file ? req.file.path : null;
