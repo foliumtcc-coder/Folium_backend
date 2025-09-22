@@ -20,6 +20,11 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
+router.post('/test', (req, res) => {
+  console.log('Chegou no /test', req.body);
+  res.json({ ok: true });
+});
+
 // Criar projeto (só para usuários logados)
 router.post('/create', authenticateToken, createProject);
 
