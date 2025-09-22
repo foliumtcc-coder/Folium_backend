@@ -2,7 +2,6 @@ import slugify from 'slugify';
 import { createClient } from '@supabase/supabase-js';
 import cloudinary from '../utils/cloudinary.js';
 import multer from 'multer';
-console.log('Entrou no endpoint createProject', req.body, req.file);
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const upload = multer({ storage: multer.memoryStorage() });
