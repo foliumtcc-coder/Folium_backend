@@ -227,19 +227,9 @@ export const updateProject = async (req, res) => {
     // Upload da imagem (se houver)
     if (req.file) {
       try {
-        const result = await cloudinary.uploader.upload_stream({
-          folder: 'projetos',
-          resource_type: 'image',
-          allowed_formats: ['jpg', 'jpeg', 'png', 'webp']
-        }, (error, result) => {
-          if (error) throw error;
-          return result;
-        });
-
-        // Se multer estiver configurado para buffer:
         await new Promise((resolve, reject) => {
           const stream = cloudinary.uploader.upload_stream(
-            { folder: 'projetos' },
+            { folder: 'projetos', resource_type: 'image', allowed_formats: ['jpg','jpeg','png','webp'] },
             (error, result) => {
               if (error) reject(error);
               else {
@@ -250,7 +240,6 @@ export const updateProject = async (req, res) => {
           );
           stream.end(req.file.buffer);
         });
-
       } catch (err) {
         console.error('[CLOUDINARY] Erro no upload:', err);
         return res.status(500).json({ error: 'Erro ao fazer upload da imagem.' });
@@ -275,27 +264,50 @@ export const updateProject = async (req, res) => {
 
     // Atualiza membros se fornecido
     if (membros) {
-      // Limpa membros antigos
-      await supabase.from('projetos_membros').delete().eq('projeto_id', projetoId);
-
       const emails = membros.split(',').map(m => m.trim()).filter(Boolean);
+
+      // Busca todos membros atuais
+      const { data: membrosAtuais } = await supabase
+        .from('projetos_membros')
+        .select('usuario_id, id')
+        .eq('projeto_id', projetoId);
+
+      const membrosAtuaisIds = membrosAtuais.map(m => m.usuario_id);
+
+      // Buscar ids dos emails enviados
+      const novosMembros = [];
       for (const email of emails) {
         const { data: usuarioMembro } = await supabase
           .from('usuarios')
           .select('id')
           .eq('email', email)
           .single();
-        if (!usuarioMembro) continue;
 
+        if (usuarioMembro) novosMembros.push(usuarioMembro.id);
+      }
+
+      // Remover membros que não estão na lista nova
+      const remover = membrosAtuaisIds.filter(id => !novosMembros.includes(id));
+      if (remover.length > 0) {
+        await supabase
+          .from('projetos_membros')
+          .delete()
+          .eq('projeto_id', projetoId)
+          .in('usuario_id', remover);
+      }
+
+      // Adicionar novos membros que ainda não existem
+      const adicionar = novosMembros.filter(id => !membrosAtuaisIds.includes(id));
+      for (const usuario_id of adicionar) {
         await supabase.from('projetos_membros').insert({
           projeto_id: projetoId,
-          usuario_id: usuarioMembro.id,
+          usuario_id,
           aceito: false,
           adicionado_em: new Date()
         });
 
         await supabase.from('notificacoes').insert({
-          usuario_id: usuarioMembro.id,
+          usuario_id,
           projeto_id: projetoId,
           mensagem: `Você foi convidado para participar do projeto ${titulo}.`,
           tipo: 'convite',
@@ -312,6 +324,8 @@ export const updateProject = async (req, res) => {
     res.status(500).json({ error: 'Erro ao atualizar projeto.' });
   }
 };
+
+
 
 
 
