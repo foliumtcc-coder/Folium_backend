@@ -1,6 +1,7 @@
 // src/routes/projects.js
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import { createClient } from '@supabase/supabase-js';
 import {
   createProject,
   acceptInvite,
@@ -11,6 +12,12 @@ import {
 } from '../../controllers/projectsController.js';
 
 const router = express.Router();
+
+// Cria o cliente Supabase
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 // Middleware de autenticação
 const authenticateToken = (req, res, next) => {
@@ -38,13 +45,31 @@ router.get('/user/:userId', authenticateToken, async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const { data: projetos, error } = await supabase
+    // Busca projetos que o usuário criou
+    const { data: criados, error: errorCriados } = await supabase
       .from('projetos')
       .select('*')
-      .or(`criado_por.eq.${userId},projetos_membros.usuario_id.eq.${userId}`); 
-      // caso queira incluir projetos em que é membro
+      .eq('criado_por', userId);
 
-    if (error) throw error;
+    if (errorCriados) throw errorCriados;
+
+    // Busca projetos em que ele é membro
+    const { data: membros, error: errorMembros } = await supabase
+      .from('projetos_membros')
+      .select('projeto_id, projetos(*)')
+      .eq('usuario_id', userId)
+      .eq('aceito', true);
+
+    if (errorMembros) throw errorMembros;
+
+    // Mapeia os projetos do membro
+    const projetosMembro = membros.map(m => m.projetos);
+
+    // Junta projetos criados e de membro, removendo duplicados
+    const projetos = [...criados, ...projetosMembro].filter(
+      (v, i, a) => a.findIndex(p => p.id === v.id) === i
+    );
+
     res.json(projetos);
   } catch (err) {
     console.error('Erro ao buscar projetos do usuário:', err);
