@@ -1,3 +1,4 @@
+// src/routes/projects.js
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import {
@@ -6,7 +7,7 @@ import {
   uploadProject,
   updateProject,
   getProjectById,
-  deleteProject   // <-- importar a função de deletar
+  deleteProject
 } from '../../controllers/projectsController.js';
 
 const router = express.Router();
@@ -25,13 +26,30 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
-// Rotas
+// Rotas existentes
 router.post('/create', authenticateToken, uploadProject, createProject);
 router.patch('/:projeto_id/accept', authenticateToken, acceptInvite);
-router.get('/:id', authenticateToken, getProjectById);   // GET projeto
-router.put('/:id', authenticateToken, uploadProject, updateProject); // PUT atualizar
+router.get('/:id', authenticateToken, getProjectById);
+router.put('/:id', authenticateToken, uploadProject, updateProject);
+router.delete('/:id', authenticateToken, deleteProject);
 
-// --- NOVA ROTA DELETE ---
-router.delete('/:id', authenticateToken, deleteProject); // DELETE projeto
+// NOVA ROTA: projetos de um usuário
+router.get('/user/:userId', authenticateToken, async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const { data: projetos, error } = await supabase
+      .from('projetos')
+      .select('*')
+      .or(`criado_por.eq.${userId},projetos_membros.usuario_id.eq.${userId}`); 
+      // caso queira incluir projetos em que é membro
+
+    if (error) throw error;
+    res.json(projetos);
+  } catch (err) {
+    console.error('Erro ao buscar projetos do usuário:', err);
+    res.status(500).json({ error: 'Erro ao buscar projetos do usuário' });
+  }
+});
 
 export default router;
