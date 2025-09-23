@@ -1,6 +1,6 @@
 import express from 'express';
 import { getUserProfile, updateProfile, uploadProfileImages } from '../../controllers/profileController.js';
-import { authenticateToken } from '../../middlewares/auth.js';
+import { authenticateToken } from '../../utils/authenticate.js';
 
 const router = express.Router();
 
