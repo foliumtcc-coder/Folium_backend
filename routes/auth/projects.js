@@ -1,7 +1,7 @@
 // routes/auth/projects.js
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { createProject, acceptInvite, uploadProject, updateProject, getProjectById } from '../../controllers/projectsController.js';
+import { createProject, acceptInvite, uploadProject, updateProject, getProjectById } from '../../controllers/projectsController.js'; // <--- use getProjectById
 
 const router = express.Router();
 
@@ -19,16 +19,11 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
-// Criar projeto
+// Rotas
 router.post('/create', authenticateToken, uploadProject, createProject);
-
-// Aceitar convite
 router.patch('/:projeto_id/accept', authenticateToken, acceptInvite);
 
-// Atualizar projeto
-router.put('/:id', authenticateToken, uploadProject, updateProject);
-
-// **Nova rota GET para buscar projeto pelo ID**
-router.get('/:id', authenticateToken, getProjectByIdController);
+// Rota para buscar projeto por ID
+router.get('/:id', authenticateToken, getProjectById); // <--- use getProjectById do controller
 
 export default router;
