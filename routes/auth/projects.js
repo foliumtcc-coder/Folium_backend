@@ -5,7 +5,8 @@ import {
   acceptInvite,
   uploadProject,
   updateProject,
-  getProjectById
+  getProjectById,
+  deleteProject   // <-- importar a função de deletar
 } from '../../controllers/projectsController.js';
 
 const router = express.Router();
@@ -29,5 +30,8 @@ router.post('/create', authenticateToken, uploadProject, createProject);
 router.patch('/:projeto_id/accept', authenticateToken, acceptInvite);
 router.get('/:id', authenticateToken, getProjectById);   // GET projeto
 router.put('/:id', authenticateToken, uploadProject, updateProject); // PUT atualizar
+
+// --- NOVA ROTA DELETE ---
+router.delete('/:id', authenticateToken, deleteProject); // DELETE projeto
 
 export default router;

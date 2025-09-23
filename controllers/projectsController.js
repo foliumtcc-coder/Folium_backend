@@ -280,3 +280,29 @@ export const updateProject = async (req, res) => {
     res.status(500).json({ error: 'Erro ao atualizar projeto.' });
   }
 };
+
+// projectsController.js
+export const deleteProject = async (req, res) => {
+  const projetoId = req.params.id;
+  const userId = req.user.id;
+
+  try {
+    // Buscar projeto no banco
+    const projeto = await db.query('SELECT * FROM projetos WHERE id = ?', [projetoId]);
+    if (!projeto[0]) return res.status(404).json({ error: 'Projeto não encontrado' });
+    
+    // Verificar se o usuário é dono
+    if (projeto[0].criado_por !== userId) {
+      return res.status(403).json({ error: 'Não autorizado a deletar este projeto' });
+    }
+
+    // Deletar projeto e etapas relacionadas
+    await db.query('DELETE FROM etapas WHERE projeto_id = ?', [projetoId]);
+    await db.query('DELETE FROM projetos WHERE id = ?', [projetoId]);
+
+    return res.json({ message: 'Projeto deletado com sucesso' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Erro ao deletar projeto' });
+  }
+};

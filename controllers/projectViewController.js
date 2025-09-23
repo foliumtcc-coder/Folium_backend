@@ -86,3 +86,42 @@ export const getAllProjects = async (req, res) => {
     res.status(500).json({ error: 'Erro ao buscar todos os projetos' });
   }
 };
+
+// Retorna projetos de um usuário específico (perfil)
+// Retorna projetos de um usuário específico (perfil)
+export const getUserProjects = async (req, res) => {
+  const perfilId = String(req.params.id); // id do dono do perfil
+  const logadoId = req.user ? String(req.user.id) : null;
+
+  try {
+    // Projetos públicos do perfil
+    const { data: publicProjects, error: publicError } = await supabase
+      .from('projetos')
+      .select('*')
+      .eq('criado_por', perfilId)
+      .eq('publico', true)
+      .order('criado_em', { ascending: false });
+
+    if (publicError) throw publicError;
+
+    let privateProjects = [];
+
+    // Se o usuário logado é o dono do perfil, também retorna privados
+    if (logadoId && logadoId === perfilId) {
+      const { data: privateData, error: privateError } = await supabase
+        .from('projetos')
+        .select('*')
+        .eq('criado_por', perfilId)
+        .eq('publico', false)
+        .order('criado_em', { ascending: false });
+
+      if (privateError) throw privateError;
+      privateProjects = privateData;
+    }
+
+    res.json([...publicProjects, ...privateProjects]);
+  } catch (err) {
+    console.error('[PROJECT VIEW] Erro ao buscar projetos do usuário:', err);
+    res.status(500).json({ error: 'Erro ao buscar projetos do usuário' });
+  }
+};
