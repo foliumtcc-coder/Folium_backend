@@ -214,22 +214,26 @@ export const updateProject = async (req, res) => {
       .eq('id', projetoId)
       .single();
 
-    if (projectError || !projeto) {
-      return res.status(404).json({ error: 'Projeto não encontrado' });
-    }
+    if (projectError || !projeto) return res.status(404).json({ error: 'Projeto não encontrado' });
 
     // Só permite dono atualizar
     if (projeto.criado_por !== logadoId) {
       return res.status(403).json({ error: 'Você não tem permissão para atualizar este projeto.' });
     }
 
-    const { titulo, descricao, membros, publico } = req.body;
+    // Campos recebidos
+    let { titulo, descricao, membros, publico } = req.body;
+    if (!titulo || !descricao) {
+      return res.status(400).json({ error: 'Título e descrição são obrigatórios.' });
+    }
+
+    // Converte booleano corretamente
+    publico = (publico === 'true' || publico === true);
+
     let imagem = projeto.imagem;
 
-    console.log('[PROJECT] Atualizando projeto com dados:', { titulo, descricao, membros, publico });
-
-    // --- Upload da imagem (se houver) ---
-    if (req.file && req.file.buffer) {
+    // Upload da imagem se houver
+    if (req.file) {
       try {
         const fileName = `${Date.now()}_${req.file.originalname}`;
         const { data: fileData, error: fileError } = await supabase
@@ -244,22 +248,17 @@ export const updateProject = async (req, res) => {
           .from('projetos-imagens')
           .getPublicUrl(fileName);
 
-        imagem = publicUrlData?.publicUrl || imagem;
+        imagem = publicUrlData.publicUrl;
       } catch (err) {
-        console.error('[PROJECT] Erro no upload da imagem:', err);
+        console.error('[UPLOAD] Erro ao salvar imagem:', err);
+        return res.status(500).json({ error: 'Erro ao fazer upload da imagem.' });
       }
     }
 
-    // Atualiza dados principais
+    // Atualiza projeto
     const { data: updatedProjeto, error: updateError } = await supabase
       .from('projetos')
-      .update({ 
-        titulo, 
-        descricao, 
-        imagem, 
-        publico: !!publico, 
-        atualizado_em: new Date() 
-      })
+      .update({ titulo, descricao, imagem, publico, atualizado_em: new Date() })
       .eq('id', projetoId)
       .select()
       .single();
@@ -267,15 +266,10 @@ export const updateProject = async (req, res) => {
     if (updateError) throw updateError;
 
     // Atualiza membros se fornecido
-    if (membros && membros.trim()) {
+    if (membros) {
+      await supabase.from('projetos_membros').delete().eq('projeto_id', projetoId);
+
       const emails = membros.split(',').map(m => m.trim()).filter(Boolean);
-
-      // Apaga membros antigos
-      await supabase
-        .from('projetos_membros')
-        .delete()
-        .eq('projeto_id', projetoId);
-
       for (const email of emails) {
         try {
           const { data: usuarioMembro } = await supabase
@@ -284,9 +278,8 @@ export const updateProject = async (req, res) => {
             .eq('email', email)
             .single();
 
-          if (!usuarioMembro) continue;
+          if (!usuarioMembro?.id) continue;
 
-          // Inserir novo membro
           await supabase.from('projetos_membros').insert({
             projeto_id: projetoId,
             usuario_id: usuarioMembro.id,
@@ -294,7 +287,6 @@ export const updateProject = async (req, res) => {
             adicionado_em: new Date()
           });
 
-          // Criar notificação
           await supabase.from('notificacoes').insert({
             usuario_id: usuarioMembro.id,
             projeto_id: projetoId,
@@ -304,7 +296,7 @@ export const updateProject = async (req, res) => {
             criada_em: new Date()
           });
         } catch (err) {
-          console.error('[PROJECT] Erro ao adicionar membro:', err);
+          console.error('[MEMBRO] Erro ao adicionar membro:', err);
         }
       }
     }
