@@ -1,7 +1,7 @@
 // src/controllers/projectsController.js
 import slugify from 'slugify';
 import { createClient } from '@supabase/supabase-js';
-import cloudinary from '../utils/cloudinary';
+import cloudinary from '../utils/cloudinary.js';
 import multer from 'multer';
 
 const supabase = createClient(
