@@ -45,15 +45,14 @@ export const uploadProject = (req, res, next) => {
 ---------------------------- */
 export const createProject = async (req, res) => {
   try {
-    const { titulo, descricao, membros } = req.body;
+    const { titulo, descricao, membros, publico } = req.body;
     const imagem = req.file ? req.file.path : null;
-    const criado_por = req.user.id; // pega do middleware de autenticação
+    const criado_por = req.user.id;
 
     if (!titulo || !descricao) {
       return res.status(400).json({ error: 'Título e descrição são obrigatórios.' });
     }
 
-    // Cria slug único
     let slug = slugify(titulo, { lower: true, strict: true });
     const { data: existing } = await supabase
       .from('projetos')
@@ -62,7 +61,6 @@ export const createProject = async (req, res) => {
 
     if (existing?.length > 0) slug += '-' + Date.now();
 
-    // Insere projeto
     const { data: projeto, error: projectError } = await supabase
       .from('projetos')
       .insert([{
@@ -70,7 +68,8 @@ export const createProject = async (req, res) => {
         titulo,
         descricao,
         imagem,
-        criado_por
+        criado_por,
+        publico: !!publico
       }])
       .select()
       .single();
@@ -80,10 +79,8 @@ export const createProject = async (req, res) => {
       throw projectError;
     }
 
-    // Adiciona membros e cria notificações
     if (membros) {
       const emails = membros.split(',').map(m => m.trim()).filter(Boolean);
-
       for (const email of emails) {
         try {
           const { data: usuarioMembro } = await supabase
@@ -94,7 +91,6 @@ export const createProject = async (req, res) => {
 
           if (!usuarioMembro) continue;
 
-          // Insere na tabela de membros
           await supabase.from('projetos_membros').insert({
             projeto_id: projeto.id,
             usuario_id: usuarioMembro.id,
@@ -102,7 +98,6 @@ export const createProject = async (req, res) => {
             adicionado_em: new Date()
           });
 
-          // Cria notificação
           await supabase.from('notificacoes').insert({
             usuario_id: usuarioMembro.id,
             projeto_id: projeto.id,
@@ -151,5 +146,58 @@ export const acceptInvite = async (req, res) => {
   } catch (err) {
     console.error('[INVITE] Erro interno:', err);
     res.status(500).json({ error: 'Erro ao aceitar convite.' });
+  }
+};
+
+/* ---------------------------
+   Buscar projeto por ID
+---------------------------- */
+export const getProjectById = async (req, res) => {
+  const projetoId = req.params.id;
+  const logadoId = req.user.id;
+
+  try {
+    // Busca projeto
+    const { data: projeto, error: projectError } = await supabase
+      .from('projetos')
+      .select('*')
+      .eq('id', projetoId)
+      .single();
+
+    if (projectError || !projeto) return res.status(404).json({ error: 'Projeto não encontrado' });
+
+    // Verifica se usuário pode acessar (projeto privado)
+    if (!projeto.publico) {
+      const { data: membro } = await supabase
+        .from('projetos_membros')
+        .select('*')
+        .eq('projeto_id', projetoId)
+        .eq('usuario_id', logadoId)
+        .eq('aceito', true)
+        .single();
+
+      if (logadoId !== projeto.criado_por && !membro) {
+        return res.status(403).json({ error: 'Projeto privado' });
+      }
+    }
+
+    // Busca etapas
+    const { data: etapas } = await supabase
+      .from('etapas')
+      .select('*, usuarios(name1)')
+      .eq('projeto_id', projetoId);
+
+    // Busca membros
+    const { data: membros } = await supabase
+      .from('projetos_membros')
+      .select('usuario_id, usuarios(name1)')
+      .eq('projeto_id', projetoId)
+      .eq('aceito', true);
+
+    res.json({ projeto, etapas, membros });
+
+  } catch (err) {
+    console.error('[PROJECT] Erro ao buscar projeto:', err);
+    res.status(500).json({ error: 'Erro interno' });
   }
 };

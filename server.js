@@ -9,6 +9,8 @@ import confirmRouter from './routes/auth/confirm.js';
 import projectsRouter from './routes/auth/projects.js';
 import userRouter from './routes/auth/user.js';
 import notifications from './routes/auth/notifications.js';
+import projectsViewRouter from './routes/auth/projectsView.js';
+import profileRouter from './routes/auth/profile.js';
 
 dotenv.config();
 
@@ -31,6 +33,8 @@ app.use('/api/auth/confirm', confirmRouter);
 app.use('/api/auth/projects', projectsRouter);
 app.use('/api/auth/user', userRouter);
 app.use('/api/auth/notifications', notifications);
+app.use('/api/auth/projectsView', projectsViewRouter);
+app.use('/api/auth/profile', profileRouter);
 
 // Rota de teste
 app.get('/ping', (req, res) => res.send('pong'));
