@@ -1,7 +1,7 @@
 // src/routes/projectsViewRoutes.js
 import express from 'express';
 import { getPublicProjects, getPrivateProjects, getAllProjects } from '../../controllers/projectViewController.js';
-import { authMiddleware } from '../../utils/authenticate.js'; // middleware que valida JWT e adiciona req.user
+import { authenticate } from '../../utils/authenticate.js'; // middleware correto
 
 const router = express.Router();
 
@@ -17,13 +17,13 @@ router.get('/public', getPublicProjects);
  * Retorna os projetos privados do usuário logado
  * Acesso: privado (necessita login)
  */
-router.get('/private', authMiddleware, getPrivateProjects);
+router.get('/private', authenticate, getPrivateProjects);
 
 /**
  * GET /projects/all
  * Retorna todos os projetos visíveis para o usuário logado (públicos + privados do usuário)
  * Acesso: privado (necessita login)
  */
-router.get('/all', authMiddleware, getAllProjects);
+router.get('/all', authenticate, getAllProjects);
 
 export default router;
