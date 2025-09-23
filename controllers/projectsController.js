@@ -202,14 +202,6 @@ export const getProjectById = async (req, res) => {
   }
 };
 
-import cloudinary from '../utils/cloudinary.js'; // Certifique que está exportando cloudinary configurado
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
 export const updateProject = async (req, res) => {
   const projetoId = req.params.id;
   const logadoId = req.user.id;
