@@ -1,7 +1,7 @@
 // routes/auth/projects.js
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { createProject, acceptInvite, uploadProject } from '../../controllers/projectsController.js'; // inclui uploadProject
+import { createProject, acceptInvite, uploadProject, updateProject } from '../../controllers/projectsController.js';
 
 const router = express.Router();
 
@@ -30,5 +30,8 @@ router.post('/create', authenticateToken, uploadProject, createProject);
 
 // Aceitar convite (só para usuários logados)
 router.patch('/:projeto_id/accept', authenticateToken, acceptInvite);
+
+// Atualizar projeto (só para o dono do projeto)
+router.put('/:id', authenticateToken, uploadProject, updateProject);
 
 export default router;

@@ -201,3 +201,82 @@ export const getProjectById = async (req, res) => {
     res.status(500).json({ error: 'Erro interno' });
   }
 };
+
+export const updateProject = async (req, res) => {
+  const projetoId = req.params.id;
+  const logadoId = req.user.id;
+
+  try {
+    // Busca projeto
+    const { data: projeto, error: projectError } = await supabase
+      .from('projetos')
+      .select('*')
+      .eq('id', projetoId)
+      .single();
+
+    if (projectError || !projeto) return res.status(404).json({ error: 'Projeto não encontrado' });
+
+    // Só permite dono atualizar
+    if (projeto.criado_por !== logadoId) {
+      return res.status(403).json({ error: 'Você não tem permissão para atualizar este projeto.' });
+    }
+
+    const { titulo, descricao, membros, publico } = req.body;
+    const imagem = req.file ? req.file.path : projeto.imagem;
+
+    // Atualiza dados principais
+    const { data: updatedProjeto, error: updateError } = await supabase
+      .from('projetos')
+      .update({ titulo, descricao, imagem, publico: !!publico, atualizado_em: new Date() })
+      .eq('id', projetoId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    // Atualiza membros se fornecido
+    if (membros) {
+      // Remove todos os membros atuais (exceto dono)
+      await supabase
+        .from('projetos_membros')
+        .delete()
+        .eq('projeto_id', projetoId);
+
+      const emails = membros.split(',').map(m => m.trim()).filter(Boolean);
+      for (const email of emails) {
+        try {
+          const { data: usuarioMembro } = await supabase
+            .from('usuarios')
+            .select('id')
+            .eq('email', email)
+            .single();
+          if (!usuarioMembro) continue;
+
+          await supabase.from('projetos_membros').insert({
+            projeto_id: projetoId,
+            usuario_id: usuarioMembro.id,
+            aceito: false,
+            adicionado_em: new Date()
+          });
+
+          await supabase.from('notificacoes').insert({
+            usuario_id: usuarioMembro.id,
+            projeto_id: projetoId,
+            mensagem: `Você foi convidado para participar do projeto ${titulo}.`,
+            tipo: 'convite',
+            lida: false,
+            criada_em: new Date()
+          });
+        } catch (err) {
+          console.error('[PROJECT] Erro ao adicionar membro:', err);
+        }
+      }
+    }
+
+    res.json({ message: 'Projeto atualizado com sucesso!', projeto: updatedProjeto });
+
+  } catch (err) {
+    console.error('[PROJECT] Erro ao atualizar projeto:', err);
+    res.status(500).json({ error: 'Erro ao atualizar projeto.' });
+  }
+};
