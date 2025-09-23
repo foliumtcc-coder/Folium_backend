@@ -221,90 +221,81 @@ export const updateProject = async (req, res) => {
       return res.status(403).json({ error: 'Você não tem permissão para atualizar este projeto.' });
     }
 
-    // Campos recebidos
-    let { titulo, descricao, membros, publico } = req.body;
-    if (!titulo || !descricao) {
-      return res.status(400).json({ error: 'Título e descrição são obrigatórios.' });
-    }
-
-    // Converte booleano corretamente
-    publico = (publico === 'true' || publico === true);
-
+    const { titulo, descricao, membros, publico } = req.body;
     let imagem = projeto.imagem;
 
-    // Upload da imagem se houver
+    // --- Upload da imagem (se houver) ---
     if (req.file) {
-      try {
-        const fileName = `${Date.now()}_${req.file.originalname}`;
-        const { data: fileData, error: fileError } = await supabase
-          .storage
-          .from('projetos-imagens')
-          .upload(fileName, req.file.buffer, { contentType: req.file.mimetype });
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'projetos', allowed_formats: ['jpg','png','jpeg','webp'] },
+        (error, result) => {
+          if (error) {
+            console.error('[CLOUDINARY] Erro no upload:', error);
+            return res.status(500).json({ error: 'Erro ao fazer upload da imagem.' });
+          }
+          imagem = result.secure_url;
 
-        if (fileError) throw fileError;
-
-        const { data: publicUrlData } = supabase
-          .storage
-          .from('projetos-imagens')
-          .getPublicUrl(fileName);
-
-        imagem = publicUrlData.publicUrl;
-      } catch (err) {
-        console.error('[UPLOAD] Erro ao salvar imagem:', err);
-        return res.status(500).json({ error: 'Erro ao fazer upload da imagem.' });
-      }
-    }
-
-    // Atualiza projeto
-    const { data: updatedProjeto, error: updateError } = await supabase
-      .from('projetos')
-      .update({ titulo, descricao, imagem, publico, atualizado_em: new Date() })
-      .eq('id', projetoId)
-      .select()
-      .single();
-
-    if (updateError) throw updateError;
-
-    // Atualiza membros se fornecido
-    if (membros) {
-      await supabase.from('projetos_membros').delete().eq('projeto_id', projetoId);
-
-      const emails = membros.split(',').map(m => m.trim()).filter(Boolean);
-      for (const email of emails) {
-        try {
-          const { data: usuarioMembro } = await supabase
-            .from('usuarios')
-            .select('id')
-            .eq('email', email)
-            .single();
-
-          if (!usuarioMembro?.id) continue;
-
-          await supabase.from('projetos_membros').insert({
-            projeto_id: projetoId,
-            usuario_id: usuarioMembro.id,
-            aceito: false,
-            adicionado_em: new Date()
-          });
-
-          await supabase.from('notificacoes').insert({
-            usuario_id: usuarioMembro.id,
-            projeto_id: projetoId,
-            mensagem: `Você foi convidado para participar do projeto ${titulo}.`,
-            tipo: 'convite',
-            lida: false,
-            criada_em: new Date()
-          });
-        } catch (err) {
-          console.error('[MEMBRO] Erro ao adicionar membro:', err);
+          updateProjectData();
         }
-      }
+      );
+
+      stream.end(req.file.buffer);
+    } else {
+      updateProjectData();
     }
 
-    res.json({ message: 'Projeto atualizado com sucesso!', projeto: updatedProjeto });
+    // Função para atualizar os dados no Supabase
+    async function updateProjectData() {
+      try {
+        const { data: updatedProjeto, error: updateError } = await supabase
+          .from('projetos')
+          .update({ titulo, descricao, imagem, publico: !!publico, atualizado_em: new Date() })
+          .eq('id', projetoId)
+          .select()
+          .single();
+
+        if (updateError) throw updateError;
+
+        // Atualiza membros se fornecido
+        if (membros) {
+          await supabase.from('projetos_membros').delete().eq('projeto_id', projetoId);
+
+          const emails = membros.split(',').map(m => m.trim()).filter(Boolean);
+          for (const email of emails) {
+            const { data: usuarioMembro } = await supabase
+              .from('usuarios')
+              .select('id')
+              .eq('email', email)
+              .single();
+            if (!usuarioMembro) continue;
+
+            await supabase.from('projetos_membros').insert({
+              projeto_id: projetoId,
+              usuario_id: usuarioMembro.id,
+              aceito: false,
+              adicionado_em: new Date()
+            });
+
+            await supabase.from('notificacoes').insert({
+              usuario_id: usuarioMembro.id,
+              projeto_id: projetoId,
+              mensagem: `Você foi convidado para participar do projeto ${titulo}.`,
+              tipo: 'convite',
+              lida: false,
+              criada_em: new Date()
+            });
+          }
+        }
+
+        res.json({ message: 'Projeto atualizado com sucesso!', projeto: updatedProjeto });
+      } catch (err) {
+        console.error('[PROJECT] Erro ao atualizar projeto:', err);
+        res.status(500).json({ error: 'Erro ao atualizar projeto.' });
+      }
+    }
 
   } catch (err) {
-    console.error('[PROJECT] Erro ao atualizar projeto:', err);
+    console.error('[PROJECT] Erro interno:', err);
     res.status(500).json({ error: 'Erro ao atualizar projeto.' });
   }
 };
