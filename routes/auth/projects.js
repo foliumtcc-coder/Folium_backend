@@ -1,7 +1,7 @@
 // routes/auth/projects.js
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { createProject, acceptInvite, uploadProject, updateProject, getProjectByIdController } from '../../controllers/projectsController.js';
+import { createProject, acceptInvite, uploadProject, updateProject, getProjectById } from '../../controllers/projectsController.js';
 
 const router = express.Router();
 
