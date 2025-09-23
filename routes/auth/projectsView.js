@@ -1,6 +1,6 @@
 // src/routes/projectsViewRoutes.js
 import express from 'express';
-import { getPublicProjects, getPrivateProjects, getAllProjects } from '../../controllers/projectsViewCOntroller.js';
+import { getPublicProjects, getPrivateProjects, getAllProjects } from '../../controllers/projectViewController.js';
 import { authMiddleware } from '../../utils/authenticate.js'; // middleware que valida JWT e adiciona req.user
 
 const router = express.Router();
