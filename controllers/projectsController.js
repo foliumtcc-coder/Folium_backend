@@ -222,7 +222,25 @@ export const updateProject = async (req, res) => {
     }
 
     const { titulo, descricao, membros, publico } = req.body;
-    const imagem = req.file ? req.file.path : projeto.imagem;
+    let imagem = projeto.imagem;
+
+    // --- Upload da imagem (se houver) ---
+    if (req.file) {
+      const fileName = `${Date.now()}_${req.file.originalname}`;
+      const { data: fileData, error: fileError } = await supabase
+        .storage
+        .from('projetos-imagens') // bucket que você criou
+        .upload(fileName, req.file.buffer, { contentType: req.file.mimetype });
+
+      if (fileError) throw fileError;
+
+      const { data: publicUrlData } = supabase
+        .storage
+        .from('projetos-imagens')
+        .getPublicUrl(fileName);
+
+      imagem = publicUrlData.publicUrl;
+    }
 
     // Atualiza dados principais
     const { data: updatedProjeto, error: updateError } = await supabase
@@ -236,7 +254,6 @@ export const updateProject = async (req, res) => {
 
     // Atualiza membros se fornecido
     if (membros) {
-      // Remove todos os membros atuais (exceto dono)
       await supabase
         .from('projetos_membros')
         .delete()
@@ -280,6 +297,7 @@ export const updateProject = async (req, res) => {
     res.status(500).json({ error: 'Erro ao atualizar projeto.' });
   }
 };
+
 
 // projectsController.js
 export const deleteProject = async (req, res) => {
