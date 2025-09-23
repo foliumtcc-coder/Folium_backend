@@ -214,7 +214,9 @@ export const updateProject = async (req, res) => {
       .eq('id', projetoId)
       .single();
 
-    if (projectError || !projeto) return res.status(404).json({ error: 'Projeto não encontrado' });
+    if (projectError || !projeto) {
+      return res.status(404).json({ error: 'Projeto não encontrado' });
+    }
 
     // Só permite dono atualizar
     if (projeto.criado_por !== logadoId) {
@@ -224,28 +226,40 @@ export const updateProject = async (req, res) => {
     const { titulo, descricao, membros, publico } = req.body;
     let imagem = projeto.imagem;
 
+    console.log('[PROJECT] Atualizando projeto com dados:', { titulo, descricao, membros, publico });
+
     // --- Upload da imagem (se houver) ---
-    if (req.file) {
-      const fileName = `${Date.now()}_${req.file.originalname}`;
-      const { data: fileData, error: fileError } = await supabase
-        .storage
-        .from('projetos-imagens') // bucket que você criou
-        .upload(fileName, req.file.buffer, { contentType: req.file.mimetype });
+    if (req.file && req.file.buffer) {
+      try {
+        const fileName = `${Date.now()}_${req.file.originalname}`;
+        const { data: fileData, error: fileError } = await supabase
+          .storage
+          .from('projetos-imagens')
+          .upload(fileName, req.file.buffer, { contentType: req.file.mimetype });
 
-      if (fileError) throw fileError;
+        if (fileError) throw fileError;
 
-      const { data: publicUrlData } = supabase
-        .storage
-        .from('projetos-imagens')
-        .getPublicUrl(fileName);
+        const { data: publicUrlData } = supabase
+          .storage
+          .from('projetos-imagens')
+          .getPublicUrl(fileName);
 
-      imagem = publicUrlData.publicUrl;
+        imagem = publicUrlData?.publicUrl || imagem;
+      } catch (err) {
+        console.error('[PROJECT] Erro no upload da imagem:', err);
+      }
     }
 
     // Atualiza dados principais
     const { data: updatedProjeto, error: updateError } = await supabase
       .from('projetos')
-      .update({ titulo, descricao, imagem, publico: !!publico, atualizado_em: new Date() })
+      .update({ 
+        titulo, 
+        descricao, 
+        imagem, 
+        publico: !!publico, 
+        atualizado_em: new Date() 
+      })
       .eq('id', projetoId)
       .select()
       .single();
@@ -253,13 +267,15 @@ export const updateProject = async (req, res) => {
     if (updateError) throw updateError;
 
     // Atualiza membros se fornecido
-    if (membros) {
+    if (membros && membros.trim()) {
+      const emails = membros.split(',').map(m => m.trim()).filter(Boolean);
+
+      // Apaga membros antigos
       await supabase
         .from('projetos_membros')
         .delete()
         .eq('projeto_id', projetoId);
 
-      const emails = membros.split(',').map(m => m.trim()).filter(Boolean);
       for (const email of emails) {
         try {
           const { data: usuarioMembro } = await supabase
@@ -267,8 +283,10 @@ export const updateProject = async (req, res) => {
             .select('id')
             .eq('email', email)
             .single();
+
           if (!usuarioMembro) continue;
 
+          // Inserir novo membro
           await supabase.from('projetos_membros').insert({
             projeto_id: projetoId,
             usuario_id: usuarioMembro.id,
@@ -276,6 +294,7 @@ export const updateProject = async (req, res) => {
             adicionado_em: new Date()
           });
 
+          // Criar notificação
           await supabase.from('notificacoes').insert({
             usuario_id: usuarioMembro.id,
             projeto_id: projetoId,
@@ -297,6 +316,7 @@ export const updateProject = async (req, res) => {
     res.status(500).json({ error: 'Erro ao atualizar projeto.' });
   }
 };
+
 
 
 // projectsController.js
