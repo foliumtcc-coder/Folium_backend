@@ -1,13 +1,10 @@
 // routes/auth/projects.js
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { createProject, acceptInvite, uploadProject, updateProject } from '../../controllers/projectsController.js';
+import { createProject, acceptInvite, uploadProject, updateProject, getProjectByIdController } from '../../controllers/projectsController.js';
 
 const router = express.Router();
 
-/* ---------------------------
-   Middleware de autenticação
----------------------------- */
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
   const token = authHeader?.split(' ')[1];
@@ -15,23 +12,23 @@ const authenticateToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // dados do usuário do token
+    req.user = decoded;
     next();
   } catch (err) {
     return res.status(403).json({ error: 'Token inválido' });
   }
 };
 
-/* ---------------------------
-   Rotas
----------------------------- */
-// Criar projeto (só para usuários logados)
+// Criar projeto
 router.post('/create', authenticateToken, uploadProject, createProject);
 
-// Aceitar convite (só para usuários logados)
+// Aceitar convite
 router.patch('/:projeto_id/accept', authenticateToken, acceptInvite);
 
-// Atualizar projeto (só para o dono do projeto)
+// Atualizar projeto
 router.put('/:id', authenticateToken, uploadProject, updateProject);
+
+// **Nova rota GET para buscar projeto pelo ID**
+router.get('/:id', authenticateToken, getProjectByIdController);
 
 export default router;
