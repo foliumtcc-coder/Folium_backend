@@ -38,7 +38,7 @@ router.post('/create', authenticateToken, uploadProject, createProject);
 router.patch('/:projeto_id/accept', authenticateToken, acceptInvite);
 router.get('/:id', authenticateToken, getProjectById);
 router.put('/:id', authenticateToken, uploadProject, updateProject);
-router.delete('/projects/:projectId', deleteProjectController);
+router.delete('/:id', authenticateToken, deleteProject);
 
 // NOVA ROTA: projetos de um usuário
 router.get('/user/:userId', authenticateToken, async (req, res) => {
