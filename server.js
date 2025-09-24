@@ -11,6 +11,7 @@ import userRouter from './routes/auth/user.js';
 import notifications from './routes/auth/notifications.js';
 import projectsViewRouter from './routes/auth/projectsView.js';
 import profileRouter from './routes/auth/profile.js';
+import etapasRouter from './routes/auth/etapas.js';
 
 dotenv.config();
 
@@ -35,6 +36,7 @@ app.use('/api/auth/user', userRouter);
 app.use('/api/auth/notifications', notifications);
 app.use('/api/auth/projectsView', projectsViewRouter);
 app.use('/api/auth/profile', profileRouter);
+app.use('/api/auth/etapas', etapasRouter);
 
 // Rota de teste
 app.get('/ping', (req, res) => res.send('pong'));
