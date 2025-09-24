@@ -119,18 +119,31 @@ export const deleteEtapaController = async (req, res) => {
 export const getEtapasByProjeto = async (req, res) => {
   try {
     const { projeto_id } = req.params;
+    // Buscar etapas
     const { data: etapas, error } = await supabase
       .from('etapas')
       .select('*')
       .eq('projeto_id', projeto_id)
       .order('numero_etapa', { ascending: true });
     if (error) throw error;
-    res.json({ etapas });
+
+    // Buscar arquivos para cada etapa
+    const etapasComArquivos = await Promise.all(etapas.map(async (etapa) => {
+      const { data: arquivos, error: errArq } = await supabase
+        .from('etapa_arquivos')
+        .select('*')
+        .eq('etapa_id', etapa.id);
+      if (errArq) throw errArq;
+      return { ...etapa, arquivos };
+    }));
+
+    res.json({ etapas: etapasComArquivos });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erro ao buscar etapas' });
   }
 };
+
 
 // --- Listar arquivos de uma etapa ---
 export const getArquivosByEtapa = async (req, res) => {
