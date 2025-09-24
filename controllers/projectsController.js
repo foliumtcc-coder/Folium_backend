@@ -330,49 +330,48 @@ export const updateProject = async (req, res) => {
 
 
 // projectsController.js
-export const deleteProject = async (req, res) => {
-  const projetoId = req.params.id;
-  const userId = req.user.id;
-
+// --- Deletar projeto com etapas e arquivos ---
+export const deleteProjectController = async (req, res) => {
   try {
-    // Buscar projeto no Supabase
-    const { data: projeto, error: projectError } = await supabase
-      .from('projetos')
-      .select('*')
-      .eq('id', projetoId)
-      .single();
+    const { projectId } = req.params;
+    if (!projectId) return res.status(400).json({ error: 'ID do projeto é obrigatório' });
 
-    if (projectError || !projeto) {
-      return res.status(404).json({ error: 'Projeto não encontrado' });
+    // 1️⃣ Buscar todas as etapas do projeto
+    const { data: etapas, error: errEtapas } = await supabase
+      .from('etapas')
+      .select('id')
+      .eq('projeto_id', projectId);
+    if (errEtapas) throw errEtapas;
+
+    // 2️⃣ Deletar todos os arquivos das etapas
+    for (const etapa of etapas) {
+      const { error: errArquivos } = await supabase
+        .from('etapa_arquivos')
+        .delete()
+        .eq('etapa_id', etapa.id);
+      if (errArquivos) throw errArquivos;
     }
 
-    // Verificar se o usuário é dono
-    if (projeto.criado_por !== userId) {
-      return res.status(403).json({ error: 'Não autorizado a deletar este projeto' });
-    }
-
-    // Deletar etapas relacionadas
-    await supabase
+    // 3️⃣ Deletar todas as etapas do projeto
+    const { error: errDeleteEtapas } = await supabase
       .from('etapas')
       .delete()
-      .eq('projeto_id', projetoId);
+      .eq('projeto_id', projectId);
+    if (errDeleteEtapas) throw errDeleteEtapas;
 
-    // Deletar membros relacionados
-    await supabase
-      .from('projetos_membros')
-      .delete()
-      .eq('projeto_id', projetoId);
-
-    // Deletar o próprio projeto
-    await supabase
+    // 4️⃣ Deletar o projeto
+    const { error: errDeleteProjeto } = await supabase
       .from('projetos')
       .delete()
-      .eq('id', projetoId);
+      .eq('id', projectId);
+    if (errDeleteProjeto) throw errDeleteProjeto;
 
-    return res.json({ message: 'Projeto deletado com sucesso' });
+    res.json({ message: 'Projeto e todas as etapas deletadas com sucesso' });
+
   } catch (err) {
-    console.error('[PROJECT] Erro ao deletar projeto:', err);
-    return res.status(500).json({ error: 'Erro ao deletar projeto' });
+    console.error('Erro ao deletar projeto:', err);
+    res.status(500).json({ error: 'Erro ao deletar projeto' });
   }
 };
+
 

@@ -9,7 +9,7 @@ const supabase = createClient(
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// --- Função auxiliar para upload no Cloudinary com promise ---
+// --- Função auxiliar para upload no Cloudinary ---
 const uploadToCloudinary = (file, folder) => {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
@@ -29,7 +29,7 @@ export const createEtapa = async (req, res) => {
     const { projeto_id, nome, descricao } = req.body;
     if (!projeto_id || !nome) return res.status(400).json({ error: 'Projeto e nome da etapa são obrigatórios' });
 
-    // Próximo numero_etapa
+    // Próximo número da etapa
     const { data: etapasExistentes, error: errCount } = await supabase
       .from('etapas')
       .select('id')
@@ -47,27 +47,28 @@ export const createEtapa = async (req, res) => {
 
     if (errEtapa) throw errEtapa;
 
-    const arquivos = [];
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const uploaded = await uploadToCloudinary(file, `projetos/${projeto_id}/etapas/${numero_etapa}`);
-        const { data: arquivoDB, error: errArq } = await supabase
-          .from('etapa_arquivos')
-          .insert([{
-            etapa_id: etapa.id,
-            nome_arquivo: file.originalname,
-            caminho_arquivo: uploaded.secure_url,
-            tipo_arquivo: file.mimetype,
-            tamanho: file.size
-          }])
-          .select()
-          .single();
-        if (errArq) throw errArq;
-        arquivos.push(arquivoDB);
-      }
+    const arquivosDB = [];
+
+    // Garantir que req.files seja sempre array
+    const arquivos = req.files || [];
+    for (const file of arquivos) {
+      const uploaded = await uploadToCloudinary(file, `projetos/${projeto_id}/etapas/${numero_etapa}`);
+      const { data: arquivoDB, error: errArq } = await supabase
+        .from('etapa_arquivos')
+        .insert([{
+          etapa_id: etapa.id,
+          nome_arquivo: file.originalname,
+          caminho_arquivo: uploaded.secure_url,
+          tipo_arquivo: file.mimetype,
+          tamanho: file.size
+        }])
+        .select()
+        .single();
+      if (errArq) throw errArq;
+      arquivosDB.push(arquivoDB);
     }
 
-    res.status(201).json({ etapa, arquivos });
+    res.status(201).json({ etapa, arquivos: arquivosDB });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erro ao criar etapa' });
