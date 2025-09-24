@@ -8,7 +8,7 @@ import {
   uploadProject,
   updateProject,
   getProjectById,
-  deleteProject
+  deleteProjectController   // <-- Corrigido aqui
 } from '../../controllers/projectsController.js';
 
 const router = express.Router();
@@ -38,7 +38,7 @@ router.post('/create', authenticateToken, uploadProject, createProject);
 router.patch('/:projeto_id/accept', authenticateToken, acceptInvite);
 router.get('/:id', authenticateToken, getProjectById);
 router.put('/:id', authenticateToken, uploadProject, updateProject);
-router.delete('/:projectId', authenticateToken, deleteProjectController);
+router.delete('/:projectId', authenticateToken, deleteProjectController); // <-- usando o nome certo
 
 // NOVA ROTA: projetos de um usuário
 router.get('/user/:userId', authenticateToken, async (req, res) => {
