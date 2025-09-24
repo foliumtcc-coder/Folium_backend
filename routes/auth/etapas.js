@@ -7,7 +7,7 @@ import {
   updateEtapaController, 
   deleteEtapaController, 
   upload 
-} from '../controllers/etapasController.js';
+} from '../../controllers/etapasController.js';
 
 const router = express.Router();
 
